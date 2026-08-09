@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as TestsRouteImport } from './routes/tests'
+import { Route as TestTestIdRouteImport } from './routes/test.$testId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const TestsRoute = TestsRouteImport.update({
   path: '/tests',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TestTestIdRoute = TestTestIdRouteImport.update({
+  id: '/test/$testId',
+  path: '/test/$testId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/tests': typeof TestsRoute
+  '/test/$testId': typeof TestTestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/tests': typeof TestsRoute
+  '/test/$testId': typeof TestTestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/tests': typeof TestsRoute
+  '/test/$testId': typeof TestTestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/tests'
+  fullPaths: '/' | '/auth' | '/tests' | '/test/$testId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/tests'
-  id: '__root__' | '/' | '/auth' | '/tests'
+  to: '/' | '/auth' | '/tests' | '/test/$testId'
+  id: '__root__' | '/' | '/auth' | '/tests' | '/test/$testId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   TestsRoute: typeof TestsRoute
+  TestTestIdRoute: typeof TestTestIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TestsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/test/$testId': {
+      id: '/test/$testId'
+      path: '/test/$testId'
+      fullPath: '/test/$testId'
+      preLoaderRoute: typeof TestTestIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   TestsRoute: TestsRoute,
+  TestTestIdRoute: TestTestIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
