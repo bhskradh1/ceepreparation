@@ -79,7 +79,7 @@ function LeaderboardPage() {
                     <AvatarFallback>{(p.full_name ?? "S").slice(0, 1)}</AvatarFallback>
                   </Avatar>
                   <p className="mt-3 truncate font-semibold">{p.full_name ?? "Student"}</p>
-                  <p className="font-display text-2xl font-bold text-primary">{Number(p.average_score).toFixed(1)}%</p>
+                  <p className="font-display text-2xl font-bold text-primary">{Number(p.average_percentage).toFixed(1)}%</p>
                   <p className="text-xs text-muted-foreground">{p.tests_taken} tests</p>
                 </CardContent>
               </Card>
@@ -113,7 +113,7 @@ function LeaderboardPage() {
                 <p className="text-xs text-muted-foreground">{p.tests_taken} tests this week</p>
               </div>
               <span className="font-display text-lg font-bold text-primary">
-                {Number(p.average_score).toFixed(1)}%
+                {Number(p.average_percentage).toFixed(1)}%
               </span>
             </div>
           ))}

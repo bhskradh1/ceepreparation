@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as TestsRouteImport } from './routes/tests'
+import { Route as ResultAttemptIdRouteImport } from './routes/result.$attemptId'
 import { Route as TestTestIdRouteImport } from './routes/test.$testId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -24,9 +26,19 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TestsRoute = TestsRouteImport.update({
   id: '/tests',
   path: '/tests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultAttemptIdRoute = ResultAttemptIdRouteImport.update({
+  id: '/result/$attemptId',
+  path: '/result/$attemptId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TestTestIdRoute = TestTestIdRouteImport.update({
@@ -38,34 +50,61 @@ const TestTestIdRoute = TestTestIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/tests': typeof TestsRoute
+  '/result/$attemptId': typeof ResultAttemptIdRoute
   '/test/$testId': typeof TestTestIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/tests': typeof TestsRoute
+  '/result/$attemptId': typeof ResultAttemptIdRoute
   '/test/$testId': typeof TestTestIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/tests': typeof TestsRoute
+  '/result/$attemptId': typeof ResultAttemptIdRoute
   '/test/$testId': typeof TestTestIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/tests' | '/test/$testId'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/leaderboard'
+    | '/tests'
+    | '/result/$attemptId'
+    | '/test/$testId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/tests' | '/test/$testId'
-  id: '__root__' | '/' | '/auth' | '/tests' | '/test/$testId'
+  to:
+    | '/'
+    | '/auth'
+    | '/leaderboard'
+    | '/tests'
+    | '/result/$attemptId'
+    | '/test/$testId'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/leaderboard'
+    | '/tests'
+    | '/result/$attemptId'
+    | '/test/$testId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   TestsRoute: typeof TestsRoute
+  ResultAttemptIdRoute: typeof ResultAttemptIdRoute
   TestTestIdRoute: typeof TestTestIdRoute
 }
 
@@ -85,11 +124,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tests': {
       id: '/tests'
       path: '/tests'
       fullPath: '/tests'
       preLoaderRoute: typeof TestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/result/$attemptId': {
+      id: '/result/$attemptId'
+      path: '/result/$attemptId'
+      fullPath: '/result/$attemptId'
+      preLoaderRoute: typeof ResultAttemptIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/test/$testId': {
@@ -105,7 +158,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
+  LeaderboardRoute: LeaderboardRoute,
   TestsRoute: TestsRoute,
+  ResultAttemptIdRoute: ResultAttemptIdRoute,
   TestTestIdRoute: TestTestIdRoute,
 }
 export const routeTree = rootRouteImport
