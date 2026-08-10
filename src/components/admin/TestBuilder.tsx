@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Eye, EyeOff, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Shuffle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { CEE_BLUEPRINT, CEE_FULL_DURATION_MINUTES, CEE_SUBJECTS, type CeeSubject } from "@/lib/cee";
@@ -20,6 +21,20 @@ function shuffle<T>(items: T[]): T[] {
   return copy;
 }
 
+/**
+ * Picks `need` random ids, preferring ones that were not used in the previous
+ * paper. At most `maxRepeat` recycled ids are allowed back in.
+ */
+function pickWithRepeatCap(pool: string[], used: Set<string>, need: number, maxRepeat: number) {
+  const fresh = shuffle(pool.filter((id) => !used.has(id)));
+  const recycled = shuffle(pool.filter((id) => used.has(id)));
+  const picks = fresh.slice(0, need);
+  if (picks.length < need) {
+    picks.push(...recycled.slice(0, Math.min(maxRepeat, need - picks.length)));
+  }
+  return picks;
+}
+
 export function TestBuilder() {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
@@ -28,6 +43,7 @@ export function TestBuilder() {
   const [subject, setSubject] = useState<CeeSubject>("Physics");
   const [count, setCount] = useState(50);
   const [duration, setDuration] = useState(CEE_FULL_DURATION_MINUTES);
+  const [maxRepeatPct, setMaxRepeatPct] = useState(10);
 
   const { data: tests } = useQuery({
     queryKey: ["admin-tests"],
@@ -39,30 +55,50 @@ export function TestBuilder() {
       if (error) throw error;
       return data;
     },
+    staleTime: 30_000,
   });
 
   const create = useMutation({
     mutationFn: async () => {
+      // Questions used by the most recent paper of the same kind.
+      const previous = (tests ?? []).find(
+        (t) => t.test_type === type && (type === "full" || t.subject === subject),
+      );
+      const used = new Set<string>();
+      if (previous) {
+        const { data: prevLinks } = await supabase
+          .from("test_questions")
+          .select("question_id")
+          .eq("test_id", previous.id);
+        for (const row of prevLinks ?? []) used.add(row.question_id);
+      }
+
+      const total = type === "full" ? 200 : count;
+      let repeatBudget = Math.floor((total * maxRepeatPct) / 100);
       const picks: string[] = [];
 
-      if (type === "full") {
-        for (const s of CEE_SUBJECTS) {
-          const { data, error } = await supabase.from("questions").select("id").eq("subject", s).limit(500);
-          if (error) throw error;
-          const need = CEE_BLUEPRINT[s];
-          const pool = shuffle((data ?? []).map((q) => q.id));
-          if (pool.length < need) {
-            throw new Error(`Not enough ${s} questions (${pool.length}/${need}).`);
-          }
-          picks.push(...pool.slice(0, need));
-        }
-      } else {
-        const { data, error } = await supabase.from("questions").select("id").eq("subject", subject).limit(500);
+      const takeSubject = async (s: CeeSubject, need: number) => {
+        const { data, error } = await supabase.from("questions").select("id").eq("subject", s).limit(2000);
         if (error) throw error;
-        const pool = shuffle((data ?? []).map((q) => q.id));
-        if (pool.length < count) throw new Error(`Not enough ${subject} questions (${pool.length}/${count}).`);
-        picks.push(...pool.slice(0, count));
+        const pool = (data ?? []).map((q) => q.id);
+        if (pool.length < need) throw new Error(`Not enough ${s} questions (${pool.length}/${need}).`);
+        const chosen = pickWithRepeatCap(pool, used, need, repeatBudget);
+        repeatBudget -= chosen.filter((id) => used.has(id)).length;
+        if (chosen.length < need) {
+          throw new Error(
+            `Only ${chosen.length}/${need} fresh ${s} questions available within the ${maxRepeatPct}% repeat limit. Import more questions.`,
+          );
+        }
+        picks.push(...chosen);
+      };
+
+      if (type === "full") {
+        for (const s of CEE_SUBJECTS) await takeSubject(s, CEE_BLUEPRINT[s]);
+      } else {
+        await takeSubject(subject, count);
       }
+
+      const ordered = shuffle(picks);
 
       const { data: test, error: testError } = await supabase
         .from("tests")
@@ -78,17 +114,21 @@ export function TestBuilder() {
         .single();
       if (testError) throw testError;
 
-      const links = picks.map((questionId, i) => ({
+      const links = ordered.map((questionId, i) => ({
         test_id: test.id,
         question_id: questionId,
         q_order: i + 1,
       }));
       const { error: linkError } = await supabase.from("test_questions").insert(links);
       if (linkError) throw linkError;
-      return links.length;
+
+      const repeats = ordered.filter((id) => used.has(id)).length;
+      return { count: links.length, repeats };
     },
-    onSuccess: (n) => {
-      toast.success(`Test created with ${n} questions. Publish it when ready.`);
+    onSuccess: ({ count: n, repeats }) => {
+      toast.success(
+        `Test created with ${n} randomly selected questions (${repeats} repeated from the last paper). Publish it when ready.`,
+      );
       setTitle("");
       setDescription("");
       void queryClient.invalidateQueries();
@@ -121,10 +161,12 @@ export function TestBuilder() {
     <div className="space-y-6">
       <Card className="card-elevated">
         <CardHeader>
-          <CardTitle>Create a test</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Shuffle className="size-5 text-primary" /> Create a test
+          </CardTitle>
           <CardDescription>
-            Full mock tests auto-pick questions using the official CEE blueprint (Zoology 40, Botany 40, Physics 50,
-            Chemistry 50, MAT 20).
+            Questions are drawn at random from the bank. Full mocks follow the official CEE blueprint (Zoology 40,
+            Botany 40, Physics 50, Chemistry 50, MAT 20), and repeats from the previous paper are capped.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
@@ -200,6 +242,20 @@ export function TestBuilder() {
             </>
           )}
           <div className="sm:col-span-2">
+            <Label>Maximum repeats from the previous paper — {maxRepeatPct}%</Label>
+            <Slider
+              className="mt-3"
+              value={[maxRepeatPct]}
+              min={0}
+              max={25}
+              step={1}
+              onValueChange={(v) => setMaxRepeatPct(v[0] ?? 10)}
+            />
+            <p className="mt-2 text-xs text-muted-foreground">
+              At most {maxRepeatPct}% of this paper can reuse questions from the last test of the same kind.
+            </p>
+          </div>
+          <div className="sm:col-span-2">
             <Button disabled={!title.trim() || create.isPending} onClick={() => create.mutate()}>
               {create.isPending ? "Creating…" : "Create test"}
             </Button>
@@ -215,7 +271,10 @@ export function TestBuilder() {
         <CardContent className="space-y-2">
           {(tests ?? []).length === 0 && <p className="text-muted-foreground">No tests created yet.</p>}
           {tests?.map((t) => (
-            <div key={t.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3">
+            <div
+              key={t.id}
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40"
+            >
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{t.title}</p>
                 <p className="text-xs text-muted-foreground">
