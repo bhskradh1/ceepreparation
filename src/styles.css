@@ -6,9 +6,11 @@
 
 /*
  * CEE Nepal mock-test design system.
- * Deep exam-hall navy + Nepali crimson accent + warm parchment surfaces.
+ * Tribhuvan University palette: deep TU navy blue + TU gold, on warm paper
+ * surfaces with a subtle woven texture. Crimson is kept only for danger.
  * All colors are oklch semantic tokens. Never hardcode colors in components.
  */
+
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
