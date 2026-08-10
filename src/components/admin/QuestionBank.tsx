@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { CEE_SUBJECTS } from "@/lib/cee";
 
@@ -27,6 +38,8 @@ export function QuestionBank() {
       if (error) throw error;
       return data;
     },
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 
   const remove = useMutation({
@@ -39,6 +52,39 @@ export function QuestionBank() {
       void queryClient.invalidateQueries({ queryKey: ["admin-questions"] });
     },
     onError: () => toast.error("Could not delete that question."),
+  });
+
+  const wipe = useMutation({
+    mutationFn: async () => {
+      // Links must go first — test_questions references questions.
+      let linkQuery = supabase.from("test_questions").delete();
+      let questionQuery = supabase.from("questions").delete();
+      if (subject === "all") {
+        const { data: ids, error: idsError } = await supabase.from("questions").select("id");
+        if (idsError) throw idsError;
+        const list = (ids ?? []).map((q) => q.id);
+        if (list.length === 0) return 0;
+        const { error: linkError } = await linkQuery.in("question_id", list);
+        if (linkError) throw linkError;
+        const { error } = await questionQuery.in("id", list);
+        if (error) throw error;
+        return list.length;
+      }
+      const { data: ids, error: idsError } = await supabase.from("questions").select("id").eq("subject", subject);
+      if (idsError) throw idsError;
+      const list = (ids ?? []).map((q) => q.id);
+      if (list.length === 0) return 0;
+      const { error: linkError } = await linkQuery.in("question_id", list);
+      if (linkError) throw linkError;
+      const { error } = await questionQuery.in("id", list);
+      if (error) throw error;
+      return list.length;
+    },
+    onSuccess: (n) => {
+      toast.success(n === 0 ? "Nothing to delete." : `${n} question(s) deleted.`);
+      void queryClient.invalidateQueries();
+    },
+    onError: () => toast.error("Could not delete the questions."),
   });
 
   const rows = (data ?? []).filter((q) => q.question.toLowerCase().includes(search.toLowerCase()));
@@ -65,6 +111,31 @@ export function QuestionBank() {
             placeholder="Search questions…"
             className="ml-auto w-56"
           />
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="destructive" disabled={wipe.isPending}>
+                <Trash2 className="size-4" />
+                {subject === "all" ? "Delete all" : `Delete all ${subject}`}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {subject === "all"
+                    ? "Delete every question in the bank?"
+                    : `Delete every ${subject} question?`}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes the questions and unlinks them from any existing mock test. Student attempts
+                  already submitted are kept. This cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => wipe.mutate()}>Yes, delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         <div className="mt-4 space-y-2">
@@ -75,7 +146,10 @@ export function QuestionBank() {
             </p>
           )}
           {rows.map((q) => (
-            <div key={q.id} className="flex items-start gap-3 rounded-lg border border-border p-3">
+            <div
+              key={q.id}
+              className="flex items-start gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/40"
+            >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{q.subject}</Badge>
