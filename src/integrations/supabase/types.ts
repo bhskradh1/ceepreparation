@@ -228,6 +228,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_delete_questions: { Args: { p_subject?: string }; Returns: number }
       get_admin_stats: {
         Args: never
         Returns: {

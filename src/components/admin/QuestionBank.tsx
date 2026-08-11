@@ -56,36 +56,23 @@ export function QuestionBank() {
 
   const wipe = useMutation({
     mutationFn: async () => {
-      // Links must go first — test_questions references questions.
-      let linkQuery = supabase.from("test_questions").delete();
-      let questionQuery = supabase.from("questions").delete();
-      if (subject === "all") {
-        const { data: ids, error: idsError } = await supabase.from("questions").select("id");
-        if (idsError) throw idsError;
-        const list = (ids ?? []).map((q) => q.id);
-        if (list.length === 0) return 0;
-        const { error: linkError } = await linkQuery.in("question_id", list);
-        if (linkError) throw linkError;
-        const { error } = await questionQuery.in("id", list);
-        if (error) throw error;
-        return list.length;
-      }
-      const { data: ids, error: idsError } = await supabase.from("questions").select("id").eq("subject", subject);
-      if (idsError) throw idsError;
-      const list = (ids ?? []).map((q) => q.id);
-      if (list.length === 0) return 0;
-      const { error: linkError } = await linkQuery.in("question_id", list);
-      if (linkError) throw linkError;
-      const { error } = await questionQuery.in("id", list);
-      if (error) throw error;
-      return list.length;
+      // Server-side bulk delete: one statement, no URL-length limits, admin-checked in the database.
+      const { data, error } = await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<{ data: number | null; error: { message: string } | null }>
+      )("admin_delete_questions", { p_subject: subject === "all" ? null : subject });
+      if (error) throw new Error(error.message);
+      return data ?? 0;
     },
     onSuccess: (n) => {
       toast.success(n === 0 ? "Nothing to delete." : `${n} question(s) deleted.`);
       void queryClient.invalidateQueries();
     },
-    onError: () => toast.error("Could not delete the questions."),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete the questions."),
   });
+
 
   const rows = (data ?? []).filter((q) => q.question.toLowerCase().includes(search.toLowerCase()));
 
