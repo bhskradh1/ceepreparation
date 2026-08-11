@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { streamText, Output } from "ai";
+import { streamText, Output, NoObjectGeneratedError } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const InputSchema = z.object({
@@ -31,8 +31,44 @@ Rules:
 - correct_option must be exactly one of "A", "B", "C", "D". Use the answer key, the "Ans:" markers, bold/marked options, or — if there is genuinely no answer anywhere — your own subject knowledge to pick the correct one.
 - subject must be exactly one of: Zoology, Botany, Physics, Chemistry, MAT. Infer it from the question content itself; do not rely on headings. MAT means mental ability / reasoning.
 - Strip question numbers, option letters, page headers, footers and watermarks from the text.
-- explanation: a single short sentence when you can justify the answer, otherwise null.
-- Never invent questions that are not present in the text.`;
+- explanation: keep it null unless one short sentence is genuinely useful.
+- Never invent questions that are not present in the text.
+- Return ONLY the JSON object {"questions": [...]}.`;
+
+/** Best-effort recovery of question objects from a truncated / non-conforming model reply. */
+function salvageQuestions(text: string | undefined): AiExtractedQuestion[] {
+  if (!text) return [];
+  const out: AiExtractedQuestion[] = [];
+  // Match each balanced-ish object that looks like a question record.
+  const matches = text.match(/\{[^{}]*"question"\s*:[^{}]*\}/g) ?? [];
+  for (const raw of matches) {
+    try {
+      const parsed = AiQuestion.partial().parse(JSON.parse(raw));
+      if (
+        parsed.question &&
+        parsed.option_a &&
+        parsed.option_b &&
+        parsed.option_c &&
+        parsed.option_d &&
+        parsed.correct_option
+      ) {
+        out.push({
+          subject: parsed.subject ?? "",
+          question: parsed.question,
+          option_a: parsed.option_a,
+          option_b: parsed.option_b,
+          option_c: parsed.option_c,
+          option_d: parsed.option_d,
+          correct_option: parsed.correct_option,
+          explanation: parsed.explanation ?? null,
+        });
+      }
+    } catch {
+      // skip malformed fragment
+    }
+  }
+  return out;
+}
 
 export const aiExtractQuestions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -47,20 +83,33 @@ export const aiExtractQuestions = createServerFn({ method: "POST" })
     const { createLovableAiGatewayProvider } = await import("./ai-gateway.server");
     const gateway = createLovableAiGatewayProvider(apiKey);
 
-    const result = streamText({
-      model: gateway("google/gemini-3.6-flash"),
-      system: SYSTEM,
-      output: Output.object({ schema: AiResult }),
-      prompt: [
-        data.hintSubject ? `If a question's subject is truly ambiguous, fall back to: ${data.hintSubject}.` : "",
-        "Extract every complete multiple-choice question from the text below.",
-        "----",
-        data.text,
-      ]
-        .filter(Boolean)
-        .join("\n"),
-    });
+    const prompt = [
+      data.hintSubject ? `If a question's subject is truly ambiguous, fall back to: ${data.hintSubject}.` : "",
+      "Extract every complete multiple-choice question from the text below.",
+      "----",
+      data.text,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
-    const output = await result.output;
-    return { questions: output.questions };
+    try {
+      const result = streamText({
+        model: gateway("google/gemini-3.6-flash"),
+        system: SYSTEM,
+        maxOutputTokens: 32000,
+        maxRetries: 1,
+        output: Output.object({ schema: AiResult }),
+        prompt,
+      });
+
+      const output = await result.output;
+      return { questions: output.questions, partial: false };
+    } catch (error) {
+      if (NoObjectGeneratedError.isInstance(error)) {
+        const salvaged = salvageQuestions(error.text);
+        return { questions: salvaged, partial: true };
+      }
+      const message = error instanceof Error ? error.message : "AI request failed.";
+      throw new Error(message);
+    }
   });
