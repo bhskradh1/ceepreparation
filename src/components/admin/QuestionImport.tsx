@@ -15,7 +15,7 @@ import { parseQuestionText, type ParsedQuestion } from "@/lib/parseQuestions";
 import { extractPdfText } from "@/lib/pdfText";
 import { aiExtractQuestions } from "@/lib/questions.functions";
 
-const CHUNK_CHARS = 9000;
+const CHUNK_CHARS = 6000;
 
 /** Splits raw paper text into model-sized chunks on line boundaries. */
 function chunkText(raw: string): string[] {
