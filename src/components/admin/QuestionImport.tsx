@@ -76,12 +76,25 @@ export function QuestionImport() {
       const chunks = chunkText(rawText);
       const tail = answerKeyTail(rawText);
       const collected: ParsedQuestion[] = [];
+      const failedBatches: number[] = [];
       setAiProgress({ done: 0, total: chunks.length });
 
       for (let i = 0; i < chunks.length; i++) {
         const body = tail && !chunks[i]!.includes(tail.slice(0, 40)) ? `${chunks[i]}\n\n${tail}` : chunks[i]!;
-        const res = await runAiExtract({ data: { text: body, hintSubject: fallbackSubject } });
-        for (const q of res.questions) {
+
+        // Each batch retries once on its own; a batch that still fails never
+        // throws away the questions the other batches already produced.
+        let res: Awaited<ReturnType<typeof runAiExtract>> | null = null;
+        for (let attempt = 0; attempt < 2 && !res; attempt++) {
+          try {
+            res = await runAiExtract({ data: { text: body, hintSubject: fallbackSubject } });
+          } catch {
+            if (attempt === 1) failedBatches.push(i + 1);
+            else await new Promise((r) => setTimeout(r, 1500));
+          }
+        }
+
+        for (const q of res?.questions ?? []) {
           const letter = (q.correct_option ?? "").trim().toUpperCase();
           if (!["A", "B", "C", "D"].includes(letter)) continue;
           if (!q.question?.trim() || !q.option_a || !q.option_b || !q.option_c || !q.option_d) continue;
@@ -102,25 +115,31 @@ export function QuestionImport() {
 
       // Drop duplicates the chunk overlap may have produced.
       const seen = new Set<string>();
-      return collected.filter((q) => {
+      const questions = collected.filter((q) => {
         const key = q.question.toLowerCase().replace(/\s+/g, " ").slice(0, 120);
         if (seen.has(key)) return false;
         seen.add(key);
         return true;
       });
+      return { questions, failedBatches, total: chunks.length };
     },
-    onSuccess: (questions) => {
+    onSuccess: ({ questions, failedBatches, total }) => {
       setParsed(questions);
-      setWarnings([]);
+      setWarnings(
+        failedBatches.length > 0
+          ? [`${failedBatches.length} of ${total} batches could not be read (batch ${failedBatches.join(", ")}). Everything else was kept.`]
+          : [],
+      );
       setAiProgress(null);
       if (questions.length === 0) toast.error("The AI could not find any complete questions in this text.");
       else toast.success(`AI detected ${questions.length} question(s) with subjects and answers.`);
     },
-    onError: () => {
+    onError: (e) => {
       setAiProgress(null);
-      toast.error("AI detection failed. Try a smaller batch or use the plain parser.");
+      toast.error(e instanceof Error ? e.message : "AI detection failed. Please try again.");
     },
   });
+
 
   const importable = parsed.filter((q) => q.correct_option);
 
