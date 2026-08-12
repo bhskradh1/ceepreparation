@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { streamText, Output, NoObjectGeneratedError } from "ai";
+import { streamText, NoObjectGeneratedError } from "ai";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const InputSchema = z.object({
@@ -98,12 +98,22 @@ export const aiExtractQuestions = createServerFn({ method: "POST" })
         system: SYSTEM,
         maxOutputTokens: 32000,
         maxRetries: 1,
-        output: Output.object({ schema: AiResult }),
         prompt,
       });
 
-      const output = await result.output;
-      return { questions: output.questions, partial: false };
+      // Stream plain text and parse ourselves: schema-constrained output throws
+      // "No output generated" whenever the model truncates or wraps the JSON.
+      const text = await result.text;
+      const cleaned = text.replace(/^\s*```(?:json)?/i, "").replace(/```\s*$/, "").trim();
+
+      try {
+        const parsed = AiResult.parse(JSON.parse(cleaned));
+        return { questions: parsed.questions, partial: false };
+      } catch {
+        const salvaged = salvageQuestions(cleaned);
+        if (salvaged.length === 0) throw new Error("The AI reply could not be read as questions.");
+        return { questions: salvaged, partial: true };
+      }
     } catch (error) {
       if (NoObjectGeneratedError.isInstance(error)) {
         const salvaged = salvageQuestions(error.text);
@@ -113,3 +123,4 @@ export const aiExtractQuestions = createServerFn({ method: "POST" })
       throw new Error(message);
     }
   });
+
