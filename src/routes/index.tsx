@@ -1,3 +1,4 @@
+import { seoTags } from "@/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BookOpen, Clock, Flame, ListChecks, Target, Trophy } from "lucide-react";
@@ -23,7 +24,9 @@ export const Route = createFileRoute("/")({
         content:
           "Full CEE format mock tests, subject practice, instant results and a weekly average-based leaderboard for Nepali medical aspirants.",
       },
+      ...seoTags("/").meta,
     ],
+    links: seoTags("/").links,
   }),
   component: Home,
 });

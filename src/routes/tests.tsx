@@ -1,3 +1,4 @@
+import { seoTags } from "@/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -25,7 +26,9 @@ export const Route = createFileRoute("/tests")({
         property: "og:description",
         content: "Timed CEE Nepal mock tests and subject-wise practice sets.",
       },
+      ...seoTags("/tests").meta,
     ],
+    links: seoTags("/tests").links,
   }),
   component: TestsPage,
 });
