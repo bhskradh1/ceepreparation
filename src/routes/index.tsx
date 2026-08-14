@@ -1,4 +1,4 @@
-import { seoTags } from "@/lib/seo";
+import { seoTags, SITE_URL, OG_IMAGE } from "@/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BookOpen, Clock, Flame, ListChecks, Target, Trophy } from "lucide-react";
