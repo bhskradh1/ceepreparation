@@ -1,3 +1,4 @@
+import { noIndexTags } from "@/lib/seo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/auth")({
         property: "og:description",
         content: "Google sign-in for CEE Nepal mock tests and weekly rankings.",
       },
+      ...noIndexTags().meta,
     ],
   }),
   component: AuthPage,
