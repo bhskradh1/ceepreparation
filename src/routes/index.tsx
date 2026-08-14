@@ -27,6 +27,21 @@ export const Route = createFileRoute("/")({
       ...seoTags("/").meta,
     ],
     links: seoTags("/").links,
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "EducationalOrganization",
+          name: "CEE Prep Nepal",
+          url: SITE_URL,
+          logo: OG_IMAGE,
+          description:
+            "Free CEE (Nepal) medical entrance mock tests in the official 200-question format with instant scoring and a weekly leaderboard.",
+          areaServed: "NP",
+        }),
+      },
+    ],
   }),
   component: Home,
 });
