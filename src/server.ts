@@ -44,14 +44,47 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+function isDebugRequest(request: Request): boolean {
+  try {
+    return new URL(request.url).searchParams.get("__ssrdebug") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function describeError(error: unknown): string {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}\n${error.stack ?? ""}`;
+  }
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
+      if (response.status >= 500 && isDebugRequest(request)) {
+        const body = await response.clone().text();
+        const captured = consumeLastCapturedError();
+        return new Response(
+          `status=${response.status}\nbody=${body.slice(0, 2000)}\n\ncaptured=${captured ? describeError(captured) : "none"}`,
+          { status: 200, headers: { "content-type": "text/plain; charset=utf-8" } },
+        );
+      }
       return await normalizeCatastrophicSsrResponse(response);
     } catch (error) {
       console.error(error);
+      if (isDebugRequest(request)) {
+        return new Response(describeError(error), {
+          status: 200,
+          headers: { "content-type": "text/plain; charset=utf-8" },
+        });
+      }
       return new Response(renderErrorPage(), {
         status: 500,
         headers: { "content-type": "text/html; charset=utf-8" },
@@ -59,3 +92,4 @@ export default {
     }
   },
 };
+
