@@ -7,7 +7,7 @@ export const OG_IMAGE = `${SITE_URL}/og-cover.jpg`;
 
 /** Absolute canonical URL for a path like "/tests". */
 export function canonical(path: string): string {
-  return `${SITE_URL}${path === "/" ? "" : path}`;
+  return `${SITE_URL}${path === "/" ? "/" : path}`;
 }
 
 /** Standard canonical + social image tags for an indexable page. */
