@@ -1,3 +1,4 @@
+import { seoTags } from "@/lib/seo";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Crown, Medal, Trophy } from "lucide-react";
@@ -23,7 +24,9 @@ export const Route = createFileRoute("/leaderboard")({
         property: "og:description",
         content: "Top CEE Nepal mock test performers of the week, ranked by average score.",
       },
+      ...seoTags("/leaderboard").meta,
     ],
+    links: seoTags("/leaderboard").links,
   }),
   component: LeaderboardPage,
 });

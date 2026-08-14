@@ -1,3 +1,4 @@
+import { noIndexTags } from "@/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/result/$attemptId")({
       },
       { property: "og:title", content: "Your CEE mock test result — CEE Prep Nepal" },
       { property: "og:description", content: "Detailed CEE mock test result with answer review." },
+      ...noIndexTags().meta,
     ],
   }),
   component: ResultPage,

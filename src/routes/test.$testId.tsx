@@ -1,3 +1,4 @@
+import { noIndexTags } from "@/lib/seo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/test/$testId")({
       },
       { property: "og:title", content: "Taking a CEE mock test — CEE Prep Nepal" },
       { property: "og:description", content: "Timed CEE Nepal mock test in progress." },
+      ...noIndexTags().meta,
     ],
   }),
   component: TestRunner,

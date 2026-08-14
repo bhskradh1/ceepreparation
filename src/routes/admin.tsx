@@ -1,3 +1,4 @@
+import { noIndexTags } from "@/lib/seo";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -19,6 +20,7 @@ export const Route = createFileRoute("/admin")({
       { name: "description", content: "Admin console for importing CEE questions, building tests and tracking students." },
       { property: "og:title", content: "Admin Console — CEE Prep Nepal" },
       { property: "og:description", content: "Manage the CEE question bank, mock tests and students." },
+      ...noIndexTags().meta,
     ],
   }),
   component: AdminPage,

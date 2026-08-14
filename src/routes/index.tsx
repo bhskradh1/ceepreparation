@@ -1,3 +1,4 @@
+import { seoTags, SITE_URL, OG_IMAGE } from "@/lib/seo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, BookOpen, Clock, Flame, ListChecks, Target, Trophy } from "lucide-react";
@@ -22,6 +23,23 @@ export const Route = createFileRoute("/")({
         property: "og:description",
         content:
           "Full CEE format mock tests, subject practice, instant results and a weekly average-based leaderboard for Nepali medical aspirants.",
+      },
+      ...seoTags("/").meta,
+    ],
+    links: seoTags("/").links,
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "EducationalOrganization",
+          name: "CEE Prep Nepal",
+          url: SITE_URL,
+          logo: OG_IMAGE,
+          description:
+            "Free CEE (Nepal) medical entrance mock tests in the official 200-question format with instant scoring and a weekly leaderboard.",
+          areaServed: "NP",
+        }),
       },
     ],
   }),
