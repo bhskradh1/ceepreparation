@@ -87,7 +87,7 @@ export default {
       }
       return new Response(renderErrorPage(), {
         status: 500,
-        headers: { "content-type": "text/plain; charset=utf-8" },
+        headers: { "content-type": "text/html; charset=utf-8" },
       });
     }
   },
