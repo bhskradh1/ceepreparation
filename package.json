@@ -91,6 +91,6 @@
   },
   "overrides": {
     "@tanstack/start-client-core": "1.170.14",
-    "@tanstack/start-server-core": "1.170.14"
+    "@tanstack/start-server-core": "1.169.17"
   }
 }
